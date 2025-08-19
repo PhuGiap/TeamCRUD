@@ -6,11 +6,11 @@ info:
 
 servers: [
       {
-        url: 'https://teamcrud.onrender.com/api-docs/',
+        url: 'https://teamcrud.onrender.com/api',
         description: 'Production server',
       },
       {
-        url: 'http://localhost:5000/api',
+        url: 'http://localhost:5001/api',
         description: 'Local server',
       },
     ]
