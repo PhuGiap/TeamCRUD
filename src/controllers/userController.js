@@ -27,7 +27,7 @@ exports.getUserById = async (req, res) => {
 // Tạo mới user
 exports.createUser = async (req, res) => {
   try {
-    const { name, email, role } = req.body;
+    const { name, email, password, role } = req.body;
 
     // kiểm tra email trùng
     const checkEmail = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
@@ -36,8 +36,8 @@ exports.createUser = async (req, res) => {
     }
 
     const result = await pool.query(
-      'INSERT INTO users (name, email, role) VALUES ($1, $2, $3) RETURNING *',
-      [name, email, role || 'user']
+      'INSERT INTO users (name, email, password, role) VALUES ($1, $2, $3, $4) RETURNING *',
+      [name, email, password, role || 'member']
     );
 
     res.status(201).json(result.rows[0]);
@@ -45,6 +45,7 @@ exports.createUser = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
 
 // Cập nhật user
 exports.updateUser = async (req, res) => {

@@ -7,7 +7,12 @@ const YAML = require("yamljs");
 const swaggerDocument = YAML.load("./swagger.yaml");
 dotenv.config();
 const app = express();
+const cors = require("cors");
+const userTeamRoutes = require('./routes/userTeamRoutes');
+app.use('/api/user-teams', userTeamRoutes);
 
+
+app.use(cors());
 app.use(express.json());
 
 // Routes

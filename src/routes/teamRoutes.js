@@ -1,20 +1,10 @@
-const express = require("express");
+const express = require('express');
 const router = express.Router();
-const teamController = require("../controllers/teamController");
+const TeamController = require('../controllers/teamController');
 
-// Lấy tất cả team
-router.get("/", teamController.getAllTeams);
-
-// Lấy team theo id
-router.get("/:id", teamController.getTeamById);
-
-// Tạo team mới
-router.post("/", teamController.createTeam);
-
-// Cập nhật team theo id
-router.put("/:id", teamController.updateTeam);
-
-// Xóa team theo id
-router.delete("/:id", teamController.deleteTeam);
+router.post('/', TeamController.create);
+router.get('/', TeamController.getAll);
+router.get('/:id', TeamController.getById);
+router.put('/:id', TeamController.update);
 
 module.exports = router;
