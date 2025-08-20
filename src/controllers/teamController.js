@@ -80,13 +80,12 @@ const TeamController = {
   async delete(req, res) {
     try {
       const id = parseInt(req.params.id);
-      const result = await pool.query('DELETE FROM teams WHERE id = $1 RETURNING *', [id]);
-      if (result.rowCount === 0) {
+      const team = await TeamModel.delete(id);
+      if (!team) {
         return res.status(404).json({ message: 'Team not found' });
       }
-      res.json({ message: 'Team deleted successfully', team: result.rows[0] });
+      res.json({ message: 'Team deleted successfully', team });
     } catch (err) {
-      console.error(err);
       res.status(500).json({ message: 'Server error' });
     }
   }
