@@ -7,7 +7,8 @@ const TeamController = {
     try {
       const { name, description, users } = req.body;
 
-      if (!name || !users || users.length < 1) {
+      // ✅ Ràng buộc: phải có ít nhất 1 user
+      if (!name || !Array.isArray(users) || users.length < 1) {
         return res.status(400).json({ error: "Name and at least one user are required" });
       }
 
@@ -58,7 +59,8 @@ const TeamController = {
       const id = parseInt(req.params.id);
       const { name, description, users } = req.body;
 
-      if (!name || !users || users.length < 1) {
+      // ✅ Ràng buộc: phải có ít nhất 1 user
+      if (!name || !Array.isArray(users) || users.length < 1) {
         return res.status(400).json({ error: "Name and at least one user are required" });
       }
 
