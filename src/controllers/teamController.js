@@ -1,126 +1,98 @@
+const { Team, User } = require("../models");
 
-const pool = require('../config/db');
-const Team = require('../models/teamModel');
-
-const TeamController = {
-  // CREATE
-  async create(req, res) {
-    try {
-      const { name, description, users } = req.body;
-
-      // Must have at least one user
-      if (!name || !Array.isArray(users) || users.length < 1) {
-        return res.status(400).json({ error: "Name and at least one user are required" });
-      }
-
-      // Check unique team name
-      const nameCheck = await pool.query('SELECT id FROM teams WHERE name = $1', [name]);
-      if (nameCheck.rows.length > 0) {
-        return res.status(400).json({ error: "Team name already exists" });
-      }
-
-      // Check all users exist
-      const userCheck = await pool.query('SELECT id FROM users WHERE id = ANY($1)', [users]);
-      if (userCheck.rows.length !== users.length) {
-        return res.status(400).json({ error: "One or more users do not exist" });
-      }
-
-      // Create team
-      const team = await Team.create({ name, description });
-
-      // Add users
-      await team.addUsers(users);
-
-      // Fetch users for response
-      await team.fetchUsers();
-
-      res.status(201).json(team);
-    } catch (err) {
-      res.status(500).json({ error: err.message });
-    }
-  },
-
-  // GET ALL
-  async getAll(req, res) {
-    try {
-      const teams = await Team.getAll();
-
-      // Optionally fetch users for each team
-      for (const team of teams) {
-        await team.fetchUsers();
-      }
-
-      res.json(teams);
-    } catch (err) {
-      res.status(500).json({ error: err.message });
-    }
-  },
-
-  // GET BY ID
-  async getById(req, res) {
-    try {
-      const id = parseInt(req.params.id);
-      const team = await Team.getById(id);
-      if (!team) return res.status(404).json({ error: "Team not found" });
-
-      await team.fetchUsers();
-      res.json(team);
-    } catch (err) {
-      res.status(500).json({ error: err.message });
-    }
-  },
-
-  // UPDATE
-  async update(req, res) {
-    try {
-      const id = parseInt(req.params.id);
-      const { name, description, users } = req.body;
-
-      if (!name || !Array.isArray(users) || users.length < 1) {
-        return res.status(400).json({ error: "Name and at least one user are required" });
-      }
-
-      // Check users exist
-      const userCheck = await pool.query('SELECT id FROM users WHERE id = ANY($1)', [users]);
-      if (userCheck.rows.length !== users.length) {
-        return res.status(400).json({ error: "One or more users do not exist" });
-      }
-
-      // Update team info
-      const team = await Team.update(id, { name, description });
-      if (!team) return res.status(404).json({ error: "Team not found" });
-
-      // Replace users
-      await team.removeUsers(users); // remove any old ones (if needed)
-      await team.addUsers(users);
-
-      // Fetch users for response
-      await team.fetchUsers();
-
-      res.json(team);
-    } catch (err) {
-      res.status(500).json({ error: err.message });
-    }
-  },
-
-  // DELETE
-  async delete(req, res) {
-    try {
-      const id = parseInt(req.params.id);
-      const team = await Team.getById(id);
-      if (!team) return res.status(404).json({ error: "Team not found" });
-
-      // Remove all users mapping
-      await team.removeUsers(team.users.map(u => u.id));
-
-      // Delete team
-      await Team.delete(id);
-
-      res.json({ message: 'Team deleted successfully', team });
-    } catch (err) {
-      res.status(500).json({ message: 'Server error' });
-    }
+// GET all teams with users
+exports.getAllTeams = async (req, res) => {
+  try {
+    const teams = await Team.findAll({
+      include: [{ model: User, as: "users" }], // include associated users
+    });
+    res.json(teams);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
 };
 
-module.exports = TeamController;
+// GET team by ID with users
+exports.getTeamById = async (req, res) => {
+  try {
+    const team = await Team.findByPk(req.params.id, {
+      attributes: ['id', 'name', 'description', 'created_at'], // all fields
+      include: [{ 
+        model: User, 
+        as: "users", 
+        attributes: ['id','name','email','role','created_at'] 
+      }]
+    });
+
+    if (!team) return res.status(404).json({ message: "Team not found" });
+    res.json(team);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+
+// CREATE a new team
+exports.createTeam = async (req, res) => {
+  try {
+    const { name, description, users } = req.body;
+
+    if (!name) {
+      return res.status(400).json({ message: "Team name is required" });
+    }
+
+    // Create a new team
+    const team = await Team.create({ name, description });
+
+    // Assign users to this team if provided
+    if (users && users.length > 0) {
+      await User.update(
+        { teamid: team.id },
+        { where: { id: users } }
+      );
+    }
+
+    // Fetch the team including users for full response
+    const result = await Team.findByPk(team.id, {
+      include: [{ model: User, as: "users" }]
+    });
+
+    res.status(201).json(result);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// UPDATE team info
+exports.updateTeam = async (req, res) => {
+  try {
+    const { name, description } = req.body;
+    const team = await Team.findByPk(req.params.id);
+    if (!team) return res.status(404).json({ message: "Team not found" });
+
+    // Update team fields
+    await team.update({ name, description });
+
+    // Fetch updated team with users for full response
+    const result = await Team.findByPk(team.id, {
+      include: [{ model: User, as: "users" }]
+    });
+
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// DELETE team
+exports.deleteTeam = async (req, res) => {
+  try {
+    const team = await Team.findByPk(req.params.id);
+    if (!team) return res.status(404).json({ message: "Team not found" });
+
+    await team.destroy();
+    res.json({ message: "Team deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};

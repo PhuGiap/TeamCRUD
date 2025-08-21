@@ -1,84 +1,119 @@
-// src/controllers/userController.js
-const User = require('../models/userModel');
+const { User, Team } = require("../models");
 
-const UserController = {
-  // GET ALL USERS
-  async getAllUsers(req, res) {
-    try {
-      const users = await User.getAll();
-      res.json(users);
-    } catch (err) {
-      res.status(500).json({ error: err.message });
-    }
-  },
+// GET all users with team info
+exports.getAllUsers = async (req, res) => {
+  try {
+    const users = await User.findAll({
+      attributes: ["id", "name", "email", "role", "created_at"], // only required fields
+      include: [
+        {
+          model: Team,
+          as: "teams", // alias must match your association in User model
+          attributes: ["id", "name", "description", "created_at"],
+        },
+      ],
+    });
 
-  // GET USER BY ID
-  async getUserById(req, res) {
-    try {
-      const id = parseInt(req.params.id);
-      if (!Number.isInteger(id)) return res.status(400).json({ error: "Invalid user ID" });
-
-      const user = await User.getById(id);
-      if (!user) return res.status(404).json({ error: "User not found" });
-
-      res.json(user);
-    } catch (err) {
-      res.status(500).json({ error: err.message });
-    }
-  },
-
-  // CREATE USER
-  async createUser(req, res) {
-    try {
-      const { name, email, password, role } = req.body;
-
-      if (!name || !email || !password || !role) {
-        return res.status(400).json({ error: "All fields are required" });
-      }
-
-      // Check email uniqueness
-      const existing = await User.getByEmail(email);
-      if (existing) return res.status(400).json({ error: "Email already exists" });
-
-      const newUser = await User.create({ name, email, password, role });
-      res.status(201).json(newUser);
-    } catch (err) {
-      res.status(500).json({ error: err.message });
-    }
-  },
-
-  // UPDATE USER
-  async updateUser(req, res) {
-    try {
-      const id = parseInt(req.params.id);
-      if (!Number.isInteger(id)) return res.status(400).json({ error: "Invalid user ID" });
-
-      const { name, email, role } = req.body;
-      if (!name && !email && !role) return res.status(400).json({ error: "At least one field is required" });
-
-      const updatedUser = await User.update(id, { name, email, role });
-      if (!updatedUser) return res.status(404).json({ error: "User not found" });
-
-      res.json(updatedUser);
-    } catch (err) {
-      res.status(500).json({ error: err.message });
-    }
-  },
-
-  // DELETE USER
-  async deleteUser(req, res) {
-    try {
-      const id = parseInt(req.params.id);
-      if (!Number.isInteger(id)) return res.status(400).json({ error: "Invalid user ID" });
-
-      const deletedUser = await User.delete(id);
-      if (!deletedUser) return res.status(404).json({ error: "User not found" });
-
-      res.json({ message: "User deleted successfully", user: deletedUser });
-    } catch (err) {
-      res.status(500).json({ error: err.message });
-    }
+    res.json(users);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
 };
 
-module.exports = UserController;
+// GET user by ID with team info
+exports.getUserById = async (req, res) => {
+  try {
+    const user = await User.findByPk(req.params.id, {
+      attributes: ["id", "name", "email", "role", "created_at"],
+      include: [
+        {
+          model: Team,
+          as: "teams",
+          attributes: ["id", "name", "description", "created_at"],
+        },
+      ],
+    });
+
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    res.json(user);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// CREATE a new user
+exports.createUser = async (req, res) => {
+  try {
+    const { name, email, role, teamid } = req.body;
+    if (!name || !email || !role) {
+      return res.status(400).json({ message: "Name, email, and role are required" });
+    }
+
+    const user = await User.create({ name, email, role, teamid });
+
+    const result = await User.findByPk(user.id, {
+      attributes: ["id", "name", "email", "role", "created_at"],
+      include: [
+        {
+          model: Team,
+          as: "teams",
+          attributes: ["id", "name", "description", "created_at"],
+        },
+      ],
+    });
+
+    res.status(201).json(result);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// UPDATE user
+exports.updateUser = async (req, res) => {
+  try {
+    const { name, email, role, teamid } = req.body;
+    const user = await User.findByPk(req.params.id);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    await user.update({ name, email, role, teamid });
+
+    const result = await User.findByPk(user.id, {
+      attributes: ["id", "name", "email", "role", "created_at"],
+      include: [
+        {
+          model: Team,
+          as: "teams",
+          attributes: ["id", "name", "description", "created_at"],
+        },
+      ],
+    });
+
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// DELETE user
+exports.deleteUser = async (req, res) => {
+  try {
+    const user = await User.findByPk(req.params.id);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    // check if user is the last in team
+    if (user.teamid) {
+      const userCount = await User.count({ where: { teamid: user.teamid } });
+      if (userCount <= 1) {
+        return res.status(400).json({
+          message: "Cannot delete user: team must have at least 1 user",
+        });
+      }
+    }
+
+    await user.destroy();
+    res.json({ message: "User deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
