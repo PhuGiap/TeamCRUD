@@ -1,4 +1,4 @@
-const pool = require('../db');
+const pool = require('../config/db');
 
 // Thêm user vào team
 exports.addUserToTeam = async (req, res) => {

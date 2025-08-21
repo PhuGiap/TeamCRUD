@@ -1,8 +1,8 @@
 const express = require('express');
 const router = express.Router();
-const pool = require('../db');
+const pool = require('../config/db');
 
-// Thêm user vào team
+// Add user to team
 router.post('/', async (req, res) => {
   try {
     const { user_id, team_id } = req.body;
@@ -25,7 +25,7 @@ router.post('/', async (req, res) => {
   }
 });
 
-// Lấy tất cả user-team
+// Get all user-team relationships
 router.get('/', async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM user_teams ORDER BY id ASC');
@@ -36,7 +36,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-// Xóa user khỏi team
+// Delete user from team
 router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;

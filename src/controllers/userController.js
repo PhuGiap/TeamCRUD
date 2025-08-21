@@ -1,86 +1,84 @@
-const pool = require('../db');
+// src/controllers/userController.js
+const User = require('../models/userModel');
 
-// Lấy tất cả users
-exports.getAllUsers = async (req, res) => {
-  try {
-    const result = await pool.query('SELECT * FROM users ORDER BY id ASC');
-    res.json(result.rows);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-};
-
-// Lấy user theo id
-exports.getUserById = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const result = await pool.query('SELECT * FROM users WHERE id = $1', [id]);
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'User not found' });
+const UserController = {
+  // GET ALL USERS
+  async getAllUsers(req, res) {
+    try {
+      const users = await User.getAll();
+      res.json(users);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
     }
-    res.json(result.rows[0]);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-};
+  },
 
-// Tạo mới user
-exports.createUser = async (req, res) => {
-  try {
-    const { name, email, password, role } = req.body;
+  // GET USER BY ID
+  async getUserById(req, res) {
+    try {
+      const id = parseInt(req.params.id);
+      if (!Number.isInteger(id)) return res.status(400).json({ error: "Invalid user ID" });
 
-    // kiểm tra email trùng
-    const checkEmail = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
-    if (checkEmail.rows.length > 0) {
-      return res.status(400).json({ error: 'Email already exists' });
+      const user = await User.getById(id);
+      if (!user) return res.status(404).json({ error: "User not found" });
+
+      res.json(user);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
     }
+  },
 
-    const result = await pool.query(
-      'INSERT INTO users (name, email, password, role) VALUES ($1, $2, $3, $4) RETURNING *',
-      [name, email, password, role || 'member']
-    );
+  // CREATE USER
+  async createUser(req, res) {
+    try {
+      const { name, email, password, role } = req.body;
 
-    res.status(201).json(result.rows[0]);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-};
+      if (!name || !email || !password || !role) {
+        return res.status(400).json({ error: "All fields are required" });
+      }
 
+      // Check email uniqueness
+      const existing = await User.getByEmail(email);
+      if (existing) return res.status(400).json({ error: "Email already exists" });
 
-// Cập nhật user
-exports.updateUser = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { name, email, role } = req.body;
-
-    const result = await pool.query(
-      'UPDATE users SET name=$1, email=$2, role=$3 WHERE id=$4 RETURNING *',
-      [name, email, role, id]
-    );
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'User not found' });
+      const newUser = await User.create({ name, email, password, role });
+      res.status(201).json(newUser);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
     }
+  },
 
-    res.json(result.rows[0]);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-};
+  // UPDATE USER
+  async updateUser(req, res) {
+    try {
+      const id = parseInt(req.params.id);
+      if (!Number.isInteger(id)) return res.status(400).json({ error: "Invalid user ID" });
 
-// Xoá user
-exports.deleteUser = async (req, res) => {
-  try {
-    const { id } = req.params;
+      const { name, email, role } = req.body;
+      if (!name && !email && !role) return res.status(400).json({ error: "At least one field is required" });
 
-    const result = await pool.query('DELETE FROM users WHERE id=$1 RETURNING *', [id]);
+      const updatedUser = await User.update(id, { name, email, role });
+      if (!updatedUser) return res.status(404).json({ error: "User not found" });
 
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'User not found' });
+      res.json(updatedUser);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
     }
+  },
 
-    res.json({ message: 'User deleted successfully' });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+  // DELETE USER
+  async deleteUser(req, res) {
+    try {
+      const id = parseInt(req.params.id);
+      if (!Number.isInteger(id)) return res.status(400).json({ error: "Invalid user ID" });
+
+      const deletedUser = await User.delete(id);
+      if (!deletedUser) return res.status(404).json({ error: "User not found" });
+
+      res.json({ message: "User deleted successfully", user: deletedUser });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
   }
 };
+
+module.exports = UserController;
