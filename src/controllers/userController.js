@@ -45,12 +45,13 @@ exports.getUserById = async (req, res) => {
 // CREATE a new user
 exports.createUser = async (req, res) => {
   try {
-    const { name, email, role, teamid } = req.body;
-    if (!name || !email || !role) {
-      return res.status(400).json({ message: "Name, email, and role are required" });
+    const { name, email, password, role, teamid } = req.body;
+
+    if (!name || !email || !role || !password) {
+      return res.status(400).json({ message: "Name, email, role, and password are required" });
     }
 
-    const user = await User.create({ name, email, role, teamid });
+    const user = await User.create({ name, email, password, role, teamid });
 
     const result = await User.findByPk(user.id, {
       attributes: ["id", "name", "email", "role", "created_at"],
@@ -72,11 +73,16 @@ exports.createUser = async (req, res) => {
 // UPDATE user
 exports.updateUser = async (req, res) => {
   try {
-    const { name, email, role, teamid } = req.body;
+    const { name, email, password, role, teamid } = req.body;
     const user = await User.findByPk(req.params.id);
+
     if (!user) return res.status(404).json({ message: "User not found" });
 
-    await user.update({ name, email, role, teamid });
+    // Cập nhật password nếu có
+    const updatedData = { name, email, role, teamid };
+    if (password) updatedData.password = password;
+
+    await user.update(updatedData);
 
     const result = await User.findByPk(user.id, {
       attributes: ["id", "name", "email", "role", "created_at"],
