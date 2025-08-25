@@ -18,14 +18,25 @@ module.exports = (sequelize) => {
         type: DataTypes.STRING,
         allowNull: false,
         unique: true,
+        vailidate: {
+          isEmail: true, // validate email format
+        },
       },
       password: {
         type: DataTypes.STRING,
         allowNull: false,
       },
       role: {
-        type: DataTypes.STRING,
+        type: DataTypes.ENUM("admin", "user"),
         allowNull: false,
+      },
+      teamid: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        references: {
+          model: "teams",
+          key: "id",
+        },
       },
       created_at: {
         type: DataTypes.DATE,

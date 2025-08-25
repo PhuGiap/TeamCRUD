@@ -1,4 +1,19 @@
 const { Team, User } = require("../models");
+const Joi = require("joi");
+const { Op } = require("sequelize");
+
+const teamSchema = Joi.object({
+  name: Joi.string().min(1).max(100).required().messages({
+    "string.empty": "Team name cannot be empty",
+    "any.required": "Team name is required",
+  }),
+  description: Joi.string().allow("").optional(),
+  users: Joi.array().items(Joi.number().integer().required()).min(1).required().messages({
+    "array.min": "At least one user is required in the team",
+    "any.required": "Users list is required",
+  }),
+});
+
 
 // GET all teams with users
 exports.getAllTeams = async (req, res) => {
@@ -35,22 +50,34 @@ exports.getTeamById = async (req, res) => {
 // CREATE a new team
 exports.createTeam = async (req, res) => {
   try {
-    const { name, description, users } = req.body;
+    // Joi validate
+    const { error, value } = teamSchema.validate(req.body, { abortEarly: false });
+    if (error) {
+      return res.status(400).json({ errors: error.details.map(e => e.message) });
+    }
 
-    if (!name) {
-      return res.status(400).json({ message: "Team name is required" });
+    const { name, description, users } = value
+
+    // Check team name
+    const existTeam = await Team.findOne({ where: { name } });
+    if (existTeam) {
+      return res.status(400).json({ message: "Team name already exists" });
+    }
+
+    // Check if user_id exists
+    const foundUsers = await User.findAll({ where: { id: users } });
+    if (foundUsers.length !== users.length) {
+      return res.status(400).json({ message: "Some users do not exist" });
     }
 
     // Create a new team
     const team = await Team.create({ name, description });
 
     // Assign users to this team if provided
-    if (users && users.length > 0) {
-      await User.update(
-        { teamid: team.id },
-        { where: { id: users } }
-      );
-    }
+    await User.update(
+      { teamid: team.id },
+      { where: { id: users } }
+    );
 
     // Fetch the team including users for full response
     const result = await Team.findByPk(team.id, {
@@ -66,12 +93,41 @@ exports.createTeam = async (req, res) => {
 // UPDATE team info
 exports.updateTeam = async (req, res) => {
   try {
-    const { name, description } = req.body;
-    const team = await Team.findByPk(req.params.id);
+    // Joi validate request body
+    const { error, value } = teamSchema.validate(req.body, { abortEarly: false });
+    if (error) {
+      return res.status(400).json({ errors: error.details.map(err => err.message) });
+    }
+
+    const { name, description, users } = value;
+    const teamId = req.params.id;
+
+    // Check if team exists
+    const team = await Team.findByPk(teamId);
     if (!team) return res.status(404).json({ message: "Team not found" });
 
+    // Check name is not duplicate (except current team)
+    const existingTeam = await Team.findOne({
+      where: { name, id: { [Op.ne]: teamId } }
+    });
+    if (existingTeam) {
+      return res.status(400).json({ message: "Team name already exists" });
+    }
+
+    // Check if user_id exists
+    const foundUsers = await User.findAll({ where: { id: users } });
+    if (foundUsers.length !== users.length) {
+      return res.status(400).json({ message: "Some users do not exist" });
+    }
+
     // Update team fields
-    await team.update({ name, description });
+    await team.update({ name, description, users });
+
+    // Reassign users to this team
+    await User.update(
+      { teamid: team.id },
+      { where: { id: users } }
+    );
 
     // Fetch updated team with users for full response
     const result = await Team.findByPk(team.id, {

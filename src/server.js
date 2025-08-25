@@ -7,11 +7,7 @@ const cors = require("cors");
 // Routes
 const userRoutes = require("./routes/userRoutes");
 const teamRoutes = require("./routes/teamRoutes");
-
-// Swagger
-const swaggerUi = require("swagger-ui-express");
-const YAML = require("yamljs");
-const swaggerDocument = YAML.load("./swagger.yaml");
+const swaggerRoutes = require("./routes/swaggerRoutes");
 
 app.use(cors());
 app.use(express.json());
@@ -21,7 +17,7 @@ app.use("/api/users", userRoutes);
 app.use("/api/teams", teamRoutes);
 
 // Swagger docs
-app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+app.use("/api-docs", swaggerRoutes);
 
 const PORT = process.env.PORT || 5001;
 
