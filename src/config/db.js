@@ -1,14 +1,14 @@
+require("dotenv").config();
 const { Sequelize } = require("sequelize");
 
-const sequelize = new Sequelize("phu_giap", "phu_giap_user", "JLAFxyckqyPpIq7oAX6KmiIClRdOjCVu", {
-  host: "dpg-d242l815pdvs73fre220-a.oregon-postgres.render.com",
+const sequelize = new Sequelize(process.env.DATABASE_URL, {
   dialect: "postgres",
-  dialectOptions: {
-    ssl: {
-      require: true,
-      rejectUnauthorized: false, 
-    },
-  },
+  // dialectOptions: {
+  //   ssl: {
+  //     require: true,
+  //     rejectUnauthorized: false, 
+  //   },
+  // },
   logging: false,
 });
 
